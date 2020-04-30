@@ -14,6 +14,11 @@ __global__ void julia_update(
     int ***dev_escape, double ax, double ay, double dx, double dy
 );
 
+__global__ void mandelbrot_update(
+    int N, int M, int ghost, int kmax, double rho, int ***dev_escape, 
+    double ax, double ay, double dx, double dy
+);
+
 void allocate_2di(int N, int M, int mbc, int ***q)
 {
     int rows = N + 2*mbc;
@@ -39,7 +44,7 @@ void delete_2di(int mbc, int ***q)
 int main(int argc, char** argv)
 {
     /* ------------------------------ Input parameters ---------------------------- */
-    /* ---  How to run -->  ./julia_cuda N kmax width xc yc creal cimag   --------- */ 
+    /* ---  How to run -->  ./fractal N kmax width xc yc fractal (creal cimag) ---- */ 
 
     int N        = atoi(argv[1]);
     int M        = N;
@@ -47,8 +52,9 @@ int main(int argc, char** argv)
     double width = atof(argv[3]);
     double xc    = atof(argv[4]);
     double yc    = atof(argv[5]);
-    double creal = atof(argv[6]);
-    double cimag = atof(argv[7]);
+    int fractal  = atoi(argv[6]); // 0 --> julia, 1 --> mandelbrot
+    double creal = atof(argv[7]);
+    double cimag = atof(argv[8]);
 
     /* --------------------------- Numerical parameters --------------------------- */
     
@@ -103,10 +109,18 @@ int main(int argc, char** argv)
     dim3 grid((M+block.x - 1)/block.x, (N+block.y - 1)/block.y);
 
     /* ----- Time loop -- compute zk/escape at each step -----  */
-    
-    julia_update<<<grid,block>>>(
-        N, M, ghost, kmax, rho, creal, cimag, dev_escape, ax, ay, dx, dy
-    );
+    if (fractal == 0)
+    {
+        julia_update<<<grid,block>>>(
+            N, M, ghost, kmax, rho, creal, cimag, dev_escape, ax, ay, dx, dy
+        );
+    } 
+    else
+    {
+        mandelbrot_update<<<grid,block>>>(
+            N, M, ghost, kmax, rho, dev_escape, ax, ay, dx, dy
+        );
+    }
     
     cudaDeviceSynchronize();
     cudaMemcpy(
@@ -115,7 +129,17 @@ int main(int argc, char** argv)
     );
     
     /* Write out meta data  */
-    FILE *fout = fopen("julia_cuda.out","w");        
+    char filename[24];
+    if(fractal == 0)
+    {
+        sprintf(filename,"julia%1.3f_%1.3fi.out", creal,cimag);
+    }
+    else
+    {
+        sprintf(filename,"mandelbrot.out");
+    }
+    
+    FILE *fout = fopen(filename,"w");        
     fwrite(&N,1,sizeof(int),fout);
     fwrite(&M,1,sizeof(int),fout);
     fwrite(&ax,1,sizeof(double),fout);
