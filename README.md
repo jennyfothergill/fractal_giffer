@@ -1,4 +1,5 @@
 # fractal_giffer
-Final class project for Parallel Computing - Makes gifs of the MandelBrot and Julia sets
 
 ![](gifs/fractal5.gif)
+
+Fancy pictures made by a CUDA learner!
